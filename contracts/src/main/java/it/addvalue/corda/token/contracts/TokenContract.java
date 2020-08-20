@@ -17,16 +17,10 @@ import static net.corda.core.contracts.ContractsDSL.requireThat;
 /**
  * TokenContract
  */
-public class TokenContract implements Contract {
+public final class TokenContract implements Contract {
     // This is used to identify our contract when building a transaction.
     public static final String ID = TokenContract.class.getCanonicalName();
 
-    /**
-     * The verify() function of all the states' contracts must not throw an exception for a transaction to be
-     * considered valid.
-     *
-     * @param tx
-     */
     @Override
     public void verify(LedgerTransaction tx) {
         final CommandWithParties<Commands> command = requireSingleCommand(tx.getCommands(), Commands.class);
@@ -64,7 +58,7 @@ public class TokenContract implements Contract {
         } else if (command.getValue() instanceof Commands.Redeem) {
             verifyRedeem(tx, command);
         } else {
-            throw new RuntimeException("Not Implemented");
+            throw new IllegalArgumentException("Unknown command " + command.getValue());
         }
     }
 
@@ -76,30 +70,20 @@ public class TokenContract implements Contract {
             // (TLC): transaction level constraint Generic constraints around the transaction.
             require.using("Inputs must be not be empty.", !inputs.isEmpty());
 
-            require.using("Outputs must be empty.",outputs.isEmpty());
+            require.using("Outputs must be empty.", outputs.isEmpty());
 
             // (SLC): state level constraint - Token-specific constraints.
-            boolean postiveInputAmout = inputs.stream().noneMatch(tokenState -> tokenState.getAmount() < 0);
+            boolean positiveInputAmount = inputs.stream().noneMatch(tokenState -> tokenState.getAmount() < 0);
             require.using("Amount must be non-negative.",
-                    postiveInputAmout);
-
-            Set<Party> inputIssuers = inputs.stream().map(TokenState::getIssuer).distinct().collect(Collectors.toSet());
-            Set<Party> outputIssuers = outputs.stream().map(TokenState::getIssuer).distinct().collect(Collectors.toSet());
-            require.using("Issuers must be conserved.", inputIssuers.equals(outputIssuers));
-
-            Map<Party, Long> inputAmout = inputs.stream().collect(Collectors.toConcurrentMap(TokenState::getIssuer, TokenState::getAmount, Math::addExact));
-            Map<Party, Long> outputAmout = outputs.stream().collect(Collectors.toConcurrentMap(TokenState::getIssuer, TokenState::getAmount, Math::addExact));
-            require.using("Token amount must be the same per issuer.",
-                    inputAmout.equals(outputAmout));
-
+                    positiveInputAmount);
 
             Set<Party> inputOwners = inputs.stream().map(TokenState::getOwner).distinct().collect(Collectors.toSet());
             require.using("Input owner must be one.",
                     inputOwners.size() == 1);
 
             // (SC): signing constraint
-            require.using("Only the owner must be signer.", Collections.singletonList(outputs.get(0).getOwner().getOwningKey()).
-                    equals(command.getSigners()));
+            require.using("Owner and Issuer must be signer.", new HashSet<>(Arrays.asList(inputs.get(0).getIssuer().getOwningKey(), inputs.get(0).getOwner().getOwningKey())).
+                    equals(new HashSet<>(command.getSigners())));
 
             // (VC): visibility constraints
             //TODO

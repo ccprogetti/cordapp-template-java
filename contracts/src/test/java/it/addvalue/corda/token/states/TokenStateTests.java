@@ -35,6 +35,14 @@ public class TokenStateTests {
     }
 
     @Test
+    public void constructorAndGettersAreWorking() {
+        final TokenState state = new TokenState(issuer, owner, 2L);
+        assertEquals(issuer, state.getIssuer());
+        assertEquals(owner, state.getOwner());
+        assertEquals(2L, state.getAmount());
+    }
+
+    @Test
     public void equalsAndHashcodeIdentifyIdenticalInstances() {
         final TokenState token1 = new TokenState(issuer, owner, 2L);
         final TokenState token2 = new TokenState(issuer, owner, 2L);

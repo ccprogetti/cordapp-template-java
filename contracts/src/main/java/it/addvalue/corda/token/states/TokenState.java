@@ -15,7 +15,7 @@ import java.util.Objects;
  * TokenState
  */
 @BelongsToContract(TokenContract.class)
-public class TokenState implements ContractState {
+public final class TokenState implements ContractState {
 
     @NotNull
     private final Party issuer;
@@ -24,15 +24,15 @@ public class TokenState implements ContractState {
 
     private final long amount;
 
-    public TokenState(@NotNull Party issuer, @NotNull Party owner, long amount) {
+    public TokenState(@NotNull final Party issuer, @NotNull final Party owner, final long amount) {
         //noinspection ConstantConditions
         if (issuer == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("issuer cannot be null");
         }
 
         //noinspection ConstantConditions
         if (owner == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("owner cannot be null");
         }
 
         this.issuer = issuer;

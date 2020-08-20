@@ -40,6 +40,7 @@ public class RedeemTokenContractTests {
         ledger(ledgerServices, (ledger -> {
             ledger.transaction(tx -> {
                 tx.input(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount));
+                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount));
                 tx.command(issuer.getPublicKey(), new TokenContract.Commands.Redeem());
                 tx.failsWith("Outputs must be empty.");
                 return null;
@@ -67,8 +68,7 @@ public class RedeemTokenContractTests {
         ledger(ledgerServices, (ledger -> {
             ledger.transaction(tx -> {
                 tx.input(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount));
-                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), amount));
-                tx.command(Arrays.asList(issuer.getPublicKey(), owner.getPublicKey()), new TokenContract.Commands.Redeem());
+                tx.command(Arrays.asList(owner.getPublicKey()), new TokenContract.Commands.Redeem());
                 tx.failsWith("Owner and Issuer must be signer.");
                 return null;
             });
