@@ -50,12 +50,14 @@ public class MoveTokenContractTests {
     }
 
     @Test
-    public void transactionInputTokenMustBeSameOutputTokenPerIssuer() {
+    public void transactionInputTokenMustBeSameInputOutputTokenPerIssuer() {
         ledger(ledgerServices, (ledger -> {
             ledger.transaction(tx -> {
                 tx.input(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), 20L));
-                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), 10L));
-                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), 5L));
+                tx.input(TokenContract.ID, new TokenState(issuer2.getParty(), owner.getParty(), 20L));
+                tx.input(TokenContract.ID, new TokenState(issuer2.getParty(), owner.getParty(), 10L));
+                tx.output(TokenContract.ID, new TokenState(issuer2.getParty(), newOwner.getParty(), 20L));
+                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), 20L));
                 tx.command(issuer.getPublicKey(), new TokenContract.Commands.Move());
                 tx.failsWith("Token amount must be the same per issuer.");
                 return null;
@@ -81,21 +83,6 @@ public class MoveTokenContractTests {
     }
 
     @Test
-    public void transactionInputMustHaveOneOwner() {
-        ledger(ledgerServices, (ledger -> {
-            ledger.transaction(tx -> {
-                tx.input(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount));
-                tx.input(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), amount));
-                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount+amount));
-                tx.command(issuer.getPublicKey(), new TokenContract.Commands.Move());
-                tx.failsWith("Input owner must be one.");
-                return null;
-            });
-            return null;
-        }));
-    }
-
-    @Test
     public void anyAmountMustBePositiveAmount() {
         ledger(ledgerServices, (ledger -> {
             ledger.transaction(tx -> {
@@ -114,7 +101,8 @@ public class MoveTokenContractTests {
         ledger(ledgerServices, (ledger -> {
             ledger.transaction(tx -> {
                 tx.input(TokenContract.ID, new TokenState(issuer.getParty(), owner.getParty(), amount));
-                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), amount));
+                tx.input(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), amount));
+                tx.output(TokenContract.ID, new TokenState(issuer.getParty(), newOwner.getParty(), amount+amount));
                 tx.command(Arrays.asList(issuer.getPublicKey(), owner.getPublicKey()), new TokenContract.Commands.Move());
                 tx.failsWith("Only the owner must be signer.");
                 return null;

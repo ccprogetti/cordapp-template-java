@@ -118,11 +118,6 @@ public final class TokenContract implements Contract {
                     inputAmout.equals(outputAmout));
 
 
-            Set<Party> inputOwners = inputs.stream().map(TokenState::getOwner).distinct().collect(Collectors.toSet());
-            require.using("Input owner must be one.",
-                    inputOwners.size() == 1);
-
-
             // (SLC): state level constraint - Token-specific constraints.
             boolean postiveInputAmout = inputs.stream().noneMatch(tokenState -> tokenState.getAmount() < 0);
             boolean postiveOutputAmout = outputs.stream().noneMatch(tokenState -> tokenState.getAmount() < 0);
@@ -131,8 +126,9 @@ public final class TokenContract implements Contract {
                     postiveInputAmout && postiveOutputAmout);
 
             // (SC): signing constraint
-            require.using("Only the owner must be signer.", Collections.singletonList(outputs.get(0).getOwner().getOwningKey()).
-                    equals(command.getSigners()));
+            require.using("Only the owner must be signer.",
+                    inputs.stream().map(tokenState -> tokenState.getOwner().getOwningKey()).collect(Collectors.toSet()).equals(
+                            new HashSet<>(command.getSigners())));
 
             // (VC): visibility constraints
             //TODO
