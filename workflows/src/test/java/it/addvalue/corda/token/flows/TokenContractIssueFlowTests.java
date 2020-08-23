@@ -1,13 +1,11 @@
 package it.addvalue.corda.token.flows;
 
 import com.google.common.collect.ImmutableList;
-import it.addvalue.corda.token.flows.TokenContractIssueFlow;
 import it.addvalue.corda.token.states.TokenState;
 import net.corda.core.concurrent.CordaFuture;
 import net.corda.core.contracts.ContractState;
 import net.corda.core.contracts.StateAndRef;
 import net.corda.core.contracts.TransactionState;
-import net.corda.core.contracts.TransactionVerificationException;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.testing.node.MockNetwork;
 import net.corda.testing.node.MockNetworkParameters;
@@ -21,7 +19,6 @@ import org.junit.rules.ExpectedException;
 
 import java.util.List;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
 public class TokenContractIssueFlowTests {
@@ -51,16 +48,10 @@ public class TokenContractIssueFlowTests {
     @Rule
     public final ExpectedException exception = ExpectedException.none();
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void flowRejectsInvalidTokens() throws Exception {
         // The TokenContract specifies that amount cannot have negative values.
         TokenContractIssueFlow.Initiator flow = new TokenContractIssueFlow.Initiator(-1, owner.getInfo().getLegalIdentities().get(0));
-        CordaFuture<SignedTransaction> future = issuer.startFlow(flow);
-        network.runNetwork();
-
-        // The TokenContract specifies that amount cannot have negative values.
-        exception.expectCause(instanceOf(TransactionVerificationException.class));
-        future.get();
     }
 
     @Test

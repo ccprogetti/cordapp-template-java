@@ -42,9 +42,9 @@ public final class TokenContract implements Contract {
                         out.getAmount() > 0);
 
                 // (VC): visibility constraints
-                require.using("Issuer and Owner must be participant.",
-                        Arrays.asList(out.getIssuer().getOwningKey(), out.getOwner().getOwningKey()).equals(
-                                out.getParticipants().stream().map(AbstractParty::getOwningKey).collect(Collectors.toList())));
+//                require.using("Issuer and Owner must be participant.",
+//                        Arrays.asList(out.getIssuer().getOwningKey(), out.getOwner().getOwningKey()).equals(
+//                                out.getParticipants().stream().map(AbstractParty::getOwningKey).collect(Collectors.toList())));
 
                 // (SC): signing constraint
                 require.using("Only the issuer must be signer.", Collections.singletonList(out.getIssuer().getOwningKey()).equals(command.getSigners()));

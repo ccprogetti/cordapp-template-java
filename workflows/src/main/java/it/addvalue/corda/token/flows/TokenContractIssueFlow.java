@@ -1,30 +1,31 @@
 package it.addvalue.corda.token.flows;
 
 import co.paralleluniverse.fibers.Suspendable;
-import com.google.common.collect.ImmutableSet;
 import it.addvalue.corda.token.contracts.TokenContract;
 import it.addvalue.corda.token.states.TokenState;
 import net.corda.core.contracts.Command;
 import net.corda.core.contracts.ContractState;
-import net.corda.core.crypto.SecureHash;
 import net.corda.core.flows.*;
 import net.corda.core.identity.Party;
 import net.corda.core.transactions.SignedTransaction;
 import net.corda.core.transactions.TransactionBuilder;
 import net.corda.core.utilities.ProgressTracker;
 import net.corda.core.utilities.ProgressTracker.Step;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Collections;
 
 import static net.corda.core.contracts.ContractsDSL.requireThat;
 
 /**
  * This flow allows two parties (the [Initiator] and the [Acceptor]) to come to an agreement about the IOU encapsulated
- * within an [IOUState].
- *
+ * within an [TokenState].
+ * <p>
  * In our simple example, the [Acceptor] always accepts a valid IOU.
- *
+ * <p>
  * These flows have deliberately been implemented by using only the call() method for ease of understanding. In
  * practice we would recommend splitting up the various stages of the flow into sub-routines.
- *
+ * <p>
  * All methods called within the [FlowLogic] sub-class need to be annotated with the @Suspendable annotation.
  */
 public class TokenContractIssueFlow {
@@ -33,6 +34,7 @@ public class TokenContractIssueFlow {
     public static class Initiator extends FlowLogic<SignedTransaction> {
 
         private final long amount;
+        @NotNull
         private final Party owner;
 
         private final Step GENERATING_TRANSACTION = new Step("Generating transaction based on new IOU.");
@@ -62,8 +64,16 @@ public class TokenContractIssueFlow {
                 FINALISING_TRANSACTION
         );
 
-        public Initiator(long amount, Party owner) {
+        public Initiator(long amount, @NotNull Party owner) {
             this.amount = amount;
+
+            //noinspection ConstantConditions
+            if (owner == null) {
+                throw new NullPointerException("Owner cannot be null");
+            }
+            if (amount < 0) {
+                throw new IllegalArgumentException("Amount must be positive");
+            }
             this.owner = owner;
         }
 
@@ -91,8 +101,8 @@ public class TokenContractIssueFlow {
             // Stage 1.
             progressTracker.setCurrentStep(GENERATING_TRANSACTION);
             // Generate an unsigned transaction.
-            Party me = getOurIdentity();
-            TokenState tokenState = new TokenState(me,owner,amount);
+            Party issuer = getOurIdentity();
+            TokenState tokenState = new TokenState(issuer, owner, amount);
             final Command<TokenContract.Commands.Issue> txCommand = new Command<>(
                     new TokenContract.Commands.Issue(), tokenState.getIssuer().getOwningKey());
             final TransactionBuilder txBuilder = new TransactionBuilder(notary)
@@ -107,12 +117,12 @@ public class TokenContractIssueFlow {
             // Stage 3.
             progressTracker.setCurrentStep(SIGNING_TRANSACTION);
             // Sign the transaction.
-            final SignedTransaction partSignedTx = getServiceHub().signInitialTransaction(txBuilder);
+            final SignedTransaction fullySignedTx = getServiceHub().signInitialTransaction(txBuilder);
 
             // Stage 4.
-            progressTracker.setCurrentStep(GATHERING_SIGS);
+            //progressTracker.setCurrentStep(GATHERING_SIGS);
             // Send the state to the counterparty, and receive it back with their signature.
-            FlowSession otherPartySession = initiateFlow(owner);
+            FlowSession holderFlows = initiateFlow(owner);
 
 //            final SignedTransaction fullySignedTx = subFlow(
 //                    new CollectSignaturesFlow(partSignedTx, ImmutableSet.of(otherPartySession), CollectSignaturesFlow.Companion.tracker()));
@@ -120,17 +130,27 @@ public class TokenContractIssueFlow {
             // Stage 5.
             progressTracker.setCurrentStep(FINALISING_TRANSACTION);
             // Notarise and record the transaction in both parties' vaults.
-            return subFlow(new FinalityFlow(partSignedTx, ImmutableSet.of(otherPartySession)));
+            final SignedTransaction notarised = subFlow(new FinalityFlow(fullySignedTx, Collections.singletonList(holderFlows)));
+
+            // We want our issuer to have a trace of the amounts that have been issued, whether it is a holder or not,
+            // in order to know the total supply. Since the issuer is not in the participants, it needs to be done
+            // manually. We do it after the FinalityFlow as this is the better way to do, after notarisation, even if
+            // here there is no notarisation.
+            //TODO: in realtà questo non serve perchè nel nostro esempio l'Issuer è un partecipante
+            //getServiceHub().recordTransactions(StatesToRecord.ALL_VISIBLE, ImmutableList.of(notarised));
+
+            return notarised;
         }
     }
 
     @InitiatedBy(Initiator.class)
     public static class Acceptor extends FlowLogic<SignedTransaction> {
 
-        private final FlowSession otherPartySession;
+        @NotNull
+        private final FlowSession counterpartySession;
 
-        public Acceptor(FlowSession otherPartySession) {
-            this.otherPartySession = otherPartySession;
+        public Acceptor(@NotNull final FlowSession counterpartySession) {
+            this.counterpartySession = counterpartySession;
         }
 
         @Suspendable
@@ -155,7 +175,7 @@ public class TokenContractIssueFlow {
             //final SignTxFlow signTxFlow = new SignTxFlow(otherPartySession, SignTransactionFlow.Companion.tracker());
             //final SecureHash txId = subFlow(signTxFlow).getId();
 
-            return subFlow(new ReceiveFinalityFlow(otherPartySession));
+            return subFlow(new ReceiveFinalityFlow(counterpartySession));
         }
     }
 }
